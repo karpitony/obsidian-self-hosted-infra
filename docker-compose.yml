@@ -1,0 +1,18 @@
+services:
+  couchdb:
+    image: couchdb:3.3
+    container_name: obsidian_db
+    restart: unless-stopped
+    ports:
+      - "5984:5984"
+    environment:
+      - COUCHDB_USER=${DB_USER}
+      - COUCHDB_PASSWORD=${DB_PASSWORD}
+    volumes:
+      - ./data/couchdb:/opt/couchdb/data
+      - ./local.ini:/opt/couchdb/etc/local.d/local.ini
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
