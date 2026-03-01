@@ -10,20 +10,28 @@ echo "🚀 Obsidian Infra 관리 시스템을 시작합니다..."
 
 
 # [2] uv 설치 확인 및 자동 설치
-if ! command -v uv &> /dev/null; then
+UV_BIN="$HOME/.local/bin/uv"
+
+if command -v uv &> /dev/null || [ -f "$UV_BIN" ]; then
+    echo "✅ uv가 이미 설치되어 있습니다."
+    
+    # PATH에 없는데 파일만 있는 경우를 대비해 경로 추가
+    if ! command -v uv &> /dev/null; then
+        export PATH="$HOME/.local/bin:$PATH"
+    fi
+else
     echo "[*] uv를 찾을 수 없습니다. 설치를 시작합니다..."
     curl -LsSf https://astral.sh/uv/install.sh | sh
     
-    # 설치 직후 현재 스크립트 세션에서 uv를 즉시 사용할 수 있도록 설정
-    # 설치 경로가 /root/.local/bin 이므로 해당 경로를 PATH에 추가합니다.
+    # 설치 직후 현재 세션에서 즉시 사용 가능하도록 설정
     export PATH="$HOME/.local/bin:$PATH"
-    
-    # 만약 uv 환경 설정 파일이 있다면 로드
     [ -f "$HOME/.local/bin/env" ] && source "$HOME/.local/bin/env"
     
-    echo "✅ uv 설치 및 경로 반영 완료."
-else
-    echo "✅ uv가 이미 설치되어 있습니다."
+    # 향후 재접속 시에도 uv를 쓸 수 있게 .bashrc에 한 번만 추가
+    if ! grep -q ".local/bin" ~/.bashrc; then
+        echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+        echo "[*] .bashrc에 uv 경로를 추가했습니다."
+    fi
 fi
 
 
