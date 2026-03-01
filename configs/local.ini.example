@@ -1,3 +1,5 @@
+; configs/local.ini.example
+
 [chttpd]
 require_valid_user = true
 max_http_request_size = 4294967296
@@ -16,5 +18,5 @@ methods = GET, PUT, POST, HEAD, DELETE
 headers = accept, authorization, content-type, origin, referer
 
 [couchdb]
-max_document_size = 50000000 ; 약 50MB (이미지 등 첨부파일 고려)
+max_document_size = 50000000
 os_process_timeout = 60000

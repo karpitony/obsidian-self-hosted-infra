@@ -1,8 +1,9 @@
 # [Secret & Environment]
 .env
-scripts/credentials.json
-scripts/client_secrets.json
-scripts/token.json
+configs/credentials.json
+configs/client_secrets.json
+configs/token.json
+configs/local.ini
 
 # [Data Directory Strategy]
 # 1. data 폴더 내부의 모든 파일을 무시

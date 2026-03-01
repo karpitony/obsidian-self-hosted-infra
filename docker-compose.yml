@@ -5,12 +5,11 @@ services:
     restart: unless-stopped
     ports:
       - "5984:5984"
-    environment:
-      - COUCHDB_USER=${DB_USER}
-      - COUCHDB_PASSWORD=${DB_PASSWORD}
+    env_file:
+    - ./configs/.env
     volumes:
       - ./data/couchdb:/opt/couchdb/data
-      - ./local.ini:/opt/couchdb/etc/local.d/local.ini
+      - ./configs/local.ini:/opt/couchdb/etc/local.d/local.ini
     logging:
       driver: "json-file"
       options:
