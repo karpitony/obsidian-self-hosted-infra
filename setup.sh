@@ -63,7 +63,7 @@ fi
 
 # [6] Cron 백업 등록 
 # 매일 00:00, 12:00에 실행
-0 0,12 * * * cd $PROJECT_DIR && $UV_PATH run $MAIN_SCRIPT backup >> $PROJECT_DIR/data/logs/cron.log 2>&1
+CRON_JOB="0 0,12 * * * cd $PROJECT_DIR && $UV_PATH run $MAIN_SCRIPT backup >> $PROJECT_DIR/data/logs/cron.log 2>&1"
 
 (crontab -l 2>/dev/null | grep -Fq "$MAIN_SCRIPT") || (
     (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -

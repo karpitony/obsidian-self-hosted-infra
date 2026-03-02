@@ -1,87 +1,99 @@
+# 📔 Obsidian Self-hosted Infra 
 
-
-## 📄 `README.md`
-
-# 📔 Obsidian Self-hosted Infra
-
-CouchDB와 Docker를 이용한 옵시디언 실시간 동기화 및 구글 드라이브 자동 백업 시스템입니다.
+CouchDB와 Docker를 이용한 옵시디언 실시간 동기화 및 **자동화된 구글 드라이브 백업** 시스템입니다.
 
 ## 📂 프로젝트 구조
-- `configs/`: API 키, 토큰, `.env`, `local.ini` 등 모든 설정 파일
-- `data/`: CouchDB 데이터, 로그, 옵시디언 Vault (Git 제외)
-- `scripts/`: 인프라 세팅 및 백업 실행 스크립트
-- `docker-compose.yml`: CouchDB 컨테이너 정의
 
+* `main.py`: 프로젝트 전체 제어를 위한 중앙 CLI 엔트리포인트
+* `configs/`: `.env`, `client_secrets.json`, `token.json` 등 보안/설정 파일
+* `data/`: CouchDB 데이터 저장소 및 실행 로그 (`logs/`)
+* `scripts/`: 백업, 인증, DB 초기화 등 핵심 로직 모듈
+* `docker-compose.yml`: CouchDB 컨테이너 정의
 
+---
 
 ## 🚀 빠른 시작 (Quick Start)
 
-### 1. 인프라 초기화
-폴더 구조를 생성하고 `.gitkeep` 및 `.env` 템플릿을 세팅합니다.
-```bash
-uv run scripts/setup.py
-```
+### 1. 환경 설정
 
-### 2. 환경 설정
+`configs/.env` 파일을 생성하고 아래 항목들을 입력합니다.
 
-* `configs/.env`: DB 계정 및 구글 드라이브 폴더 ID 입력
-* `configs/client_secrets.json`: 구글 클라우드 콘솔에서 받은 OAuth JSON 배치
+* `COUCHDB_USER / PASSWORD`: DB 계정 설정
+* `GDRIVE_FOLDER_ID`: 백업 파일이 저장될 구글 드라이브 폴더 ID
+* `SERVER_IP / PORT`: 테일스케일 IP 및 포트 (8080 권장)
+* `GDRIVE_REDIRECT_URI`: `http://127.0.0.1:8080/` (고정)
 
-### 3. 서버 실행
+### 2. 원클릭 인프라 가동
 
-```bash
-docker compose up -d
-```
-
-
-
-## 🔍 서버 상태 체크 (Health Check)
-
-서버가 정상적으로 떴는지 확인하려면 터미널에서 아래 명령어를 입력하세요.
-
-**1. API 응답 확인**
+아래 스크립트를 실행하면 **uv 설치, 도커 가동, DB 초기화, 크론잡 등록**까지 한 번에 완료됩니다.
 
 ```bash
-# .env에 적은 계정 정보를 사용하세요
-curl -u admin:password http://localhost:5984
+chmod +x setup.sh
+./setup.sh
 ```
 
-> `{"couchdb":"Welcome","version":"3.3.3" ...}` 메시지가 나오면 성공!
+### 3. 최초 구글 인증
 
-**2. 관리자 페이지 접속**
-브라우저에서 `http://localhost:5984/_utils/` (Fauxton 인터페이스)에 접속하여 로그인되는지 확인합니다.
-
-
-
-## 💾 백업 실행 (Manual Backup)
-
-현재 데이터를 압축하여 구글 드라이브로 즉시 업로드합니다.
+백업을 위해 구글 권한을 획득해야 합니다.
 
 ```bash
-uv run scripts/backup.py
-
+uv run main.py auth
 ```
 
-*최초 실행 시 브라우저 인증창이 뜨며, 인증 후 `configs/token.json`이 생성됩니다.*
+* 디스코드 알림의 링크를 클릭하여 인증을 완료하세요.
+* **iOS 유저:** `127.0.0.1` 에러 페이지가 뜨면 주소창 URL을 복사해 인증 페이지 하단 입력창에 붙여넣으세요.
 
+---
 
+## 🛠️ CLI 사용법 (main.py)
+
+모든 기능은 `main.py`를 통해 실행됩니다.
+
+| 명령어 | 설명 | 비고 |
+| --- | --- | --- |
+| `uv run main.py backup` | 즉시 백업 실행 | `--count 10` 옵션으로 유지 개수 조절 가능 |
+| `uv run main.py auth` | 구글 드라이브 인증 | `token.json` 갱신 시 사용 |
+| `uv run main.py init` | CouchDB 초기화 | 기본 시스템 DB 및 `obsidian` DB 생성 |
+
+---
+
+## ⏰ 자동 백업 스케줄 (Crontab)
+
+시스템은 **매일 00:00, 12:00**에 자동으로 백업을 시도합니다.
+
+* **상태 확인:** `crontab -l`
+* **로그 확인:** `tail -f data/logs/cron.log`
+
+---
 
 ## 📱 옵시디언 앱 설정 (Self-hosted LiveSync)
 
-플러그인 설정창에 아래 정보를 입력하세요.
+옵시디언 **Self-hosted LiveSync** 플러그인에서 아래와 같이 설정하세요.
 
-* **Remote Type:** CouchDB
-* **URI:** `http://[서버-IP]:5984`
+* **Remote Type:** `CouchDB`
+* **URI:** `http://[테일스케일-IP]:5984`
 * **Username/Password:** `.env`에 설정한 값
-* **Database:** `obsidian` (Check 버튼 눌러서 생성)
+* **Database:** `obsidian`
 
+---
 
+## 🔍 문제 해결 (Troubleshooting)
 
+**1. 인증 타임아웃이 발생했어요**
+새벽에 인증 알림을 놓치면 보안을 위해 2시간 뒤 프로세스가 종료됩니다. 아침에 일어나서 `uv run main.py auth`를 한 번 실행해 주면 됩니다.
 
+**2. 서버가 응답하지 않아요**
+컨테이너 로그를 확인하여 CouchDB 상태를 점검하세요.
 
-### `docker-compose` 로그 확인법
-
-만약 서버가 안 뜨거나 옵시디언에서 접속이 안 된다면 이 명령어로 로그를 바로 확인해 보세요.
 ```bash
-docker-compose logs -f obsidian_db
+docker compose logs -f obsidian_db
 ```
+
+**3. 리디렉션 오류 (redirect_uri_mismatch)**
+구글 콘솔에 등록된 URI와 `.env`의 `GDRIVE_REDIRECT_URI`가 일치하는지 확인하세요. (끝에 `/` 포함 여부 필수 체크)
+
+---
+
+### 💡 Tip
+
+백업 성공/실패 여부는 설정된 디스코드 웹훅으로 실시간 전송됩니다. 폰에 디스코드 알림을 켜두시면 편리합니다.
