@@ -2,8 +2,7 @@
 
 # [1] 경로 및 변수 설정
 PROJECT_DIR=$(pwd)
-BACKUP_SCRIPT="$PROJECT_DIR/scripts/backup.py"
-INIT_SCRIPT="$PROJECT_DIR/scripts/init_db.py"
+MAIN_SCRIPT="$PROJECT_DIR/main.py"
 LOG_FILE="$PROJECT_DIR/data/logs/setup.log"
 
 echo "🚀 Obsidian Infra 관리 시스템을 시작합니다..."
@@ -34,6 +33,8 @@ else
     fi
 fi
 
+UV_PATH="$HOME/.local/bin/uv"
+
 
 # [3] Docker Compose 실행
 echo "[*] Docker 컨테이너 실행 중..."
@@ -51,25 +52,24 @@ until curl -s http://localhost:5984 > /dev/null || [ $COUNT -eq $MAX_RETRIES ]; 
 done
 
 
-# [5] DB 초기화 스크립트 실행
-if [ -f "$INIT_SCRIPT" ]; then
+# [5] DB 초기화 스크립트 실행 (main.py CLI 사용)
+if [ -f "$MAIN_SCRIPT" ]; then
     echo "[*] 시스템 데이터베이스 초기화 중..."
-    uv run "$INIT_SCRIPT"
+    $UV_PATH  run "$MAIN_SCRIPT" init
 else
-    echo "⚠️  init_db.py를 찾을 수 없어 건너뜁니다."
+    echo "⚠️  main.py를 찾을 수 없어 건너뜁니다."
 fi
 
 
-# [6] Cron 백업 등록 (매일 새벽 3시)
-# 이미 등록되어 있는지 확인 후 추가
-UV_BIN=$(command -v uv)
-CRON_JOB="0 3 * * * cd $PROJECT_DIR && uv run $BACKUP_SCRIPT >> $PROJECT_DIR/data/logs/backup.log 2>&1"
+# [6] Cron 백업 등록 
+# 매일 00:00, 12:00에 실행
+0 0,12 * * * cd $PROJECT_DIR && $UV_PATH run $MAIN_SCRIPT backup >> $PROJECT_DIR/data/logs/cron.log 2>&1
 
-(crontab -l 2>/dev/null | grep -Fq "$BACKUP_SCRIPT") || (
+(crontab -l 2>/dev/null | grep -Fq "$MAIN_SCRIPT") || (
     (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-    echo "✅ 새벽 3시 백업 작업이 Crontab에 등록되었습니다."
+    echo "✅ 00:00, 12:00 백업 작업이 Crontab에 등록되었습니다."
 )
 
 echo "✨ 모든 인프라 세팅이 완료되었습니다!"
 echo "🔍 상태 확인: docker ps"
-echo "📂 로그 확인: tail -f data/logs/setup.log"
+echo "📂 로그 확인: tail -f data/logs/backup.log"
