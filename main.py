@@ -35,6 +35,16 @@ def cmd_init(args: argparse.Namespace) -> None:
     initializer = DatabaseInitializer()
     initializer.run()
     
+
+def cmd_restore(args: argparse.Namespace) -> None:
+    """restore 하위 명령 핸들러"""
+    from scripts.restore import RestoreManager
+
+    logger.info("구글 드라이브로부터 데이터 복원(Restore)을 시작합니다.")
+    manager = RestoreManager()
+    manager.run()
+
+
 def cmd_auth(args: argparse.Namespace) -> None:
     """auth 하위 명령 핸들러: 백업 없이 인증만 수행"""
     from scripts.auth import GoogleDriveAuthenticator
@@ -84,6 +94,13 @@ def main() -> None:
         help="CouchDB 데이터베이스 초기화",
     )
     init_parser.set_defaults(func=cmd_init)
+    
+    # --- restore 명령어 ---
+    restore_parser = subparsers.add_parser(
+        "restore",
+        help="구글 드라이브에서 백업 데이터를 내려받아 로컬 DB를 복구",
+    )
+    restore_parser.set_defaults(func=cmd_restore)
     
     # --- auth 명령어 ---
     auth_parser = subparsers.add_parser(
