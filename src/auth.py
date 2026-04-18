@@ -115,10 +115,16 @@ class GoogleDriveAuthenticator:
     def __init__(self, notifier):
         self.notifier = notifier
 
-    def get_credentials(self) -> OAuth2Credentials:
+    def get_credentials(self, force_reauth: bool = False) -> OAuth2Credentials:
         creds = None
-        if TOKEN_FILE.exists():
+        if TOKEN_FILE.exists() and not force_reauth:
             creds = OAuth2Credentials.from_authorized_user_file(str(TOKEN_FILE), self.SCOPES)
+
+        if force_reauth:
+            creds = self._auth_via_discord()
+            with open(TOKEN_FILE, "w") as token:
+                token.write(creds.to_json())
+            return creds
 
         if not creds or not creds.valid:
             if creds and creds.expired and creds.refresh_token:

@@ -10,8 +10,8 @@ import traceback
 
 from src.daemon import run_daemon
 from src.logger import setup_logger
-from src.clients.bot import run_bot_daemon
-from src.services.usecases import run_auth, run_backup, run_init, run_restore
+from src.bot import run_bot_daemon
+from src.usecases import run_auth, run_backup, run_init, run_restore
 
 logger = setup_logger("cli")
 
@@ -33,7 +33,7 @@ def cmd_restore(args: argparse.Namespace) -> None:
 
 def cmd_auth(args: argparse.Namespace) -> None:
     logger.info("🔐 구글 드라이브 수동 인증을 시작합니다.")
-    ok = run_auth()
+    ok = run_auth(force_reauth=args.force)
     if ok:
         logger.info("✅ 인증에 성공했습니다. 이제 정기 백업이 가능합니다.")
     else:
@@ -89,6 +89,11 @@ def main() -> None:
     auth_parser = subparsers.add_parser(
         "auth",
         help="구글 드라이브 인증 (token.json 생성)",
+    )
+    auth_parser.add_argument(
+        "--force",
+        action="store_true",
+        help="기존 토큰을 무시하고 인증 링크를 강제로 재발송",
     )
     auth_parser.set_defaults(func=cmd_auth)
 
