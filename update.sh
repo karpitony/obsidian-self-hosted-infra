@@ -10,6 +10,7 @@ SHOULD_SYNC=0
 SHOULD_RESTART=0
 UNIT_EXISTS=0
 SETUP_SCRIPT="$PROJECT_DIR/setup.sh"
+UNIT_FILE="/etc/systemd/system/$SERVICE_NAME.service"
 
 echo "🚀 업데이트를 시작합니다..."
 
@@ -50,10 +51,10 @@ fi
 
 # [4] systemd 유닛 존재 여부 확인
 if command -v systemctl &> /dev/null; then
-    if systemctl list-unit-files --type=service --all | awk '{print $1}' | grep -Fxq "$SERVICE_NAME.service"; then
+    if [ -f "$UNIT_FILE" ]; then
         UNIT_EXISTS=1
     else
-        echo "[*] $SERVICE_NAME.service 유닛이 없어 setup.sh를 먼저 실행합니다."
+        echo "[*] $SERVICE_NAME.service 유닛 파일이 없어 setup.sh를 먼저 실행합니다."
         if [ -f "$SETUP_SCRIPT" ]; then
             chmod +x "$SETUP_SCRIPT"
             bash "$SETUP_SCRIPT"
@@ -66,16 +67,12 @@ fi
 
 # [5] 서비스 반영 (항상 재기동)
 if [ "$UNIT_EXISTS" -eq 1 ]; then
-    if [ "$UNIT_EXISTS" -eq 1 ]; then
-        echo "[*] $SERVICE_NAME 서비스 반영 (daemon-reload + restart)"
-        sudo systemctl daemon-reload
-        sudo systemctl restart "$SERVICE_NAME"
-        sudo systemctl status "$SERVICE_NAME" --no-pager
-    fi
+    echo "[*] $SERVICE_NAME 서비스 반영 (daemon-reload + restart)"
+    sudo systemctl daemon-reload
+    sudo systemctl restart "$SERVICE_NAME"
+    sudo systemctl status "$SERVICE_NAME" --no-pager
 else
-    if command -v systemctl &> /dev/null; then
-        echo "⚠️ systemctl을 찾지 못했습니다. 수동 재실행이 필요합니다."
-    fi
+    echo "⚠️ systemctl을 찾지 못했습니다. 수동 재실행이 필요합니다."
 fi
 
 echo "✅ 업데이트 완료"
