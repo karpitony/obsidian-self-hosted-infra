@@ -55,3 +55,5 @@ LOG_DIR.mkdir(parents=True, exist_ok=True)
 
 # [6] 선택적 상수 (기본값 제공)
 DISCORD_URL = os.getenv("DISCORD_WEBHOOK_URL") # 알림은 필수가 아닐 수 있음
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN")
+ALLOWED_USER_ID = os.getenv("ALLOWED_USER_ID")
