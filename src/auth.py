@@ -1,5 +1,4 @@
 import time
-import sys
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs
 from typing import cast
@@ -151,7 +150,7 @@ class GoogleDriveAuthenticator:
             "🔑 구글 인증 필요", 
             f"백업을 위해 인증이 필요합니다. **2시간 내**에 완료해 주세요.\n\n"
             f"[🔗 인증 페이지 열기]({access_url})\n\n"
-            f"만약 타임아웃된 경우, 아침에 `uv run main.py auth`를 실행하세요."
+            f"만약 타임아웃된 경우, 아침에 `uv run cli.py auth`를 실행하세요."
         )
         
         server = AuthServer(('0.0.0.0', SERVER_PORT), OAuthCallbackHandler)
@@ -168,7 +167,7 @@ class GoogleDriveAuthenticator:
             if time.time() - start_time > timeout_seconds:
                 self.notifier.error("⏰ 인증 타임아웃", "2시간 동안 인증이 없어 백업 프로세스를 종료합니다. 나중에 수동으로 인증해 주세요.")
                 logger.error("Auth timeout reached.")
-                sys.exit(1)
+                raise TimeoutError("인증 타임아웃(2시간)으로 auth 프로세스를 종료합니다.")
             
             server.handle_request()
         

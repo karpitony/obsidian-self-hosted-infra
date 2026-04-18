@@ -2,7 +2,7 @@
 
 # [1] 경로 및 변수 설정
 PROJECT_DIR=$(pwd)
-MAIN_SCRIPT="$PROJECT_DIR/main.py"
+MAIN_SCRIPT="$PROJECT_DIR/cli.py"
 LOG_FILE="$PROJECT_DIR/data/logs/setup.log"
 
 echo "🚀 Obsidian Infra 관리 시스템을 시작합니다..."
@@ -52,24 +52,56 @@ until curl -s http://localhost:5984 > /dev/null || [ $COUNT -eq $MAX_RETRIES ]; 
 done
 
 
-# [5] DB 초기화 스크립트 실행 (main.py CLI 사용)
+# [5] DB 초기화 스크립트 실행 (cli.py CLI 사용)
 if [ -f "$MAIN_SCRIPT" ]; then
     echo "[*] 시스템 데이터베이스 초기화 중..."
     $UV_PATH  run "$MAIN_SCRIPT" init
 else
-    echo "⚠️  main.py를 찾을 수 없어 건너뜁니다."
+    echo "⚠️  cli.py를 찾을 수 없어 건너뜁니다."
 fi
 
 
-# [6] Cron 백업 등록 
-# 매일 00:00, 12:00에 실행
-CRON_JOB="0 0,12 * * * cd $PROJECT_DIR && $UV_PATH run $MAIN_SCRIPT backup >> $PROJECT_DIR/data/logs/cron.log 2>&1"
+# [6] 기존 Cron 제거 (통합 데몬으로 전환)
+if crontab -l 2>/dev/null | grep -Eq "main.py backup|cli.py backup"; then
+    echo "[*] 기존 Cron 백업 작업을 제거합니다..."
+    crontab -l 2>/dev/null | grep -Ev "main.py backup|cli.py backup" | crontab -
+fi
 
-(crontab -l 2>/dev/null | grep -Fq "$MAIN_SCRIPT") || (
-    (crontab -l 2>/dev/null; echo "$CRON_JOB") | crontab -
-    echo "✅ 00:00, 12:00 백업 작업이 Crontab에 등록되었습니다."
-)
+# [7] systemd 서비스 등록 (자동 시작 + 자동 재시작)
+SERVICE_NAME="obsidian-infra"
+SERVICE_FILE="/etc/systemd/system/$SERVICE_NAME.service"
+
+if command -v systemctl &> /dev/null; then
+    echo "[*] systemd 서비스 파일 생성 중..."
+    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+[Unit]
+Description=Obsidian Infra Unified Daemon
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=$PROJECT_DIR
+ExecStart=$UV_PATH run $MAIN_SCRIPT daemon
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    echo "[*] systemd 리로드 및 서비스 활성화..."
+    sudo systemctl daemon-reload
+    sudo systemctl enable --now "$SERVICE_NAME"
+
+    echo "✅ 서비스 활성화 완료: $SERVICE_NAME"
+    echo "🔍 상태 확인: sudo systemctl status $SERVICE_NAME"
+    echo "📂 로그 확인: sudo journalctl -u $SERVICE_NAME -f"
+else
+    echo "⚠️ systemctl을 찾지 못해 자동 시작 등록을 건너뜁니다."
+    echo "수동 실행: $UV_PATH run $MAIN_SCRIPT daemon"
+fi
 
 echo "✨ 모든 인프라 세팅이 완료되었습니다!"
-echo "🔍 상태 확인: docker ps"
-echo "📂 로그 확인: tail -f data/logs/backup.log"
+echo "🔍 CouchDB 상태 확인: docker ps"
