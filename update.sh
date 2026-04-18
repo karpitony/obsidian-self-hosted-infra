@@ -8,6 +8,7 @@ HAS_GIT=0
 CHANGED_FILES=""
 SHOULD_SYNC=0
 SHOULD_RESTART=0
+UNIT_EXISTS=0
 
 echo "🚀 업데이트를 시작합니다..."
 
@@ -54,9 +55,20 @@ if [ "$SHOULD_SYNC" -eq 1 ]; then
     fi
 fi
 
-# [4] 서비스 반영 (필요 시)
+# [4] systemd 유닛 존재 여부 확인
+if command -v systemctl &> /dev/null; then
+    if systemctl list-unit-files --type=service --all | awk '{print $1}' | grep -Fxq "$SERVICE_NAME.service"; then
+        UNIT_EXISTS=1
+    else
+        echo "⚠️ $SERVICE_NAME.service 유닛을 찾지 못했습니다."
+        echo "먼저 1회 ./setup.sh 를 실행해 서비스 등록을 완료해 주세요."
+        exit 1
+    fi
+fi
+
+# [5] 서비스 반영 (필요 시)
 if [ "$SHOULD_RESTART" -eq 1 ]; then
-    if command -v systemctl &> /dev/null; then
+    if [ "$UNIT_EXISTS" -eq 1 ]; then
         echo "[*] $SERVICE_NAME 서비스 반영 (daemon-reload + restart)"
         sudo systemctl daemon-reload
         sudo systemctl restart "$SERVICE_NAME"
@@ -67,7 +79,7 @@ if [ "$SHOULD_RESTART" -eq 1 ]; then
 else
     echo "[*] 서비스 재시작이 필요한 변경이 없어 현재 프로세스를 유지합니다."
 
-    if command -v systemctl &> /dev/null; then
+    if [ "$UNIT_EXISTS" -eq 1 ]; then
         if ! sudo systemctl is-active --quiet "$SERVICE_NAME"; then
             echo "[*] $SERVICE_NAME 서비스가 비활성 상태여서 시작합니다."
             sudo systemctl start "$SERVICE_NAME"
