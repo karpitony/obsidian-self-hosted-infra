@@ -93,7 +93,7 @@ chmod +x update.sh
 ```
 
 주의: 통합 데몬은 메모리에 로드된 코드로 계속 실행되므로 `git pull`만으로는 실행 중 프로세스에 반영되지 않습니다.
-`update.sh`가 변경 파일을 감지해 필요한 경우에만 `uv sync` 및 `systemd restart`를 수행합니다.
+`update.sh`는 변경 파일이 있으면 `uv sync`를 수행하고, 서비스는 매 실행마다 재기동합니다. 유닛이 없으면 `setup.sh`를 먼저 실행해 등록합니다.
 
 ---
 

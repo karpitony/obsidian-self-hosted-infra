@@ -9,6 +9,7 @@ CHANGED_FILES=""
 SHOULD_SYNC=0
 SHOULD_RESTART=0
 UNIT_EXISTS=0
+SETUP_SCRIPT="$PROJECT_DIR/setup.sh"
 
 echo "🚀 업데이트를 시작합니다..."
 
@@ -30,17 +31,9 @@ if [ -d "$PROJECT_DIR/.git" ]; then
 fi
 
 # [2] 변경 내용에 따라 동작 결정
-if [ "$HAS_GIT" -eq 0 ] || [ -z "$CHANGED_FILES" ]; then
-    # git 저장소가 아니거나 변경이 없으면 불필요한 재시작을 피함
-    SHOULD_SYNC=0
-    SHOULD_RESTART=0
-else
+if [ "$HAS_GIT" -eq 1 ] && [ -n "$CHANGED_FILES" ]; then
     if echo "$CHANGED_FILES" | grep -Eq '(^|/)(pyproject.toml|uv.lock)$'; then
         SHOULD_SYNC=1
-    fi
-
-    if echo "$CHANGED_FILES" | grep -Eq '(^|/)(cli.py|main.py|setup.sh|update.sh|deploy.sh|src/|configs/\.env|configs/\.env.example|configs/local.ini|docker-compose.yml)'; then
-        SHOULD_RESTART=1
     fi
 fi
 
@@ -60,31 +53,28 @@ if command -v systemctl &> /dev/null; then
     if systemctl list-unit-files --type=service --all | awk '{print $1}' | grep -Fxq "$SERVICE_NAME.service"; then
         UNIT_EXISTS=1
     else
-        echo "⚠️ $SERVICE_NAME.service 유닛을 찾지 못했습니다."
-        echo "먼저 1회 ./setup.sh 를 실행해 서비스 등록을 완료해 주세요."
+        echo "[*] $SERVICE_NAME.service 유닛이 없어 setup.sh를 먼저 실행합니다."
+        if [ -f "$SETUP_SCRIPT" ]; then
+            chmod +x "$SETUP_SCRIPT"
+            bash "$SETUP_SCRIPT"
+            exit 0
+        fi
+        echo "⚠️ setup.sh를 찾을 수 없습니다. 먼저 1회 ./setup.sh 를 실행해 서비스 등록을 완료해 주세요."
         exit 1
     fi
 fi
 
-# [5] 서비스 반영 (필요 시)
-if [ "$SHOULD_RESTART" -eq 1 ]; then
+# [5] 서비스 반영 (항상 재기동)
+if [ "$UNIT_EXISTS" -eq 1 ]; then
     if [ "$UNIT_EXISTS" -eq 1 ]; then
         echo "[*] $SERVICE_NAME 서비스 반영 (daemon-reload + restart)"
         sudo systemctl daemon-reload
         sudo systemctl restart "$SERVICE_NAME"
         sudo systemctl status "$SERVICE_NAME" --no-pager
-    else
-        echo "⚠️ systemctl을 찾지 못했습니다. 수동 재실행이 필요합니다."
     fi
 else
-    echo "[*] 서비스 재시작이 필요한 변경이 없어 현재 프로세스를 유지합니다."
-
-    if [ "$UNIT_EXISTS" -eq 1 ]; then
-        if ! sudo systemctl is-active --quiet "$SERVICE_NAME"; then
-            echo "[*] $SERVICE_NAME 서비스가 비활성 상태여서 시작합니다."
-            sudo systemctl start "$SERVICE_NAME"
-            sudo systemctl status "$SERVICE_NAME" --no-pager
-        fi
+    if command -v systemctl &> /dev/null; then
+        echo "⚠️ systemctl을 찾지 못했습니다. 수동 재실행이 필요합니다."
     fi
 fi
 
